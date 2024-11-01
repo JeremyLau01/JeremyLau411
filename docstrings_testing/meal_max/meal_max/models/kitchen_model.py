@@ -27,6 +27,21 @@ class Meal:
 
 
 def create_meal(meal: str, cuisine: str, price: float, difficulty: str) -> None:
+    """
+    Creates a meal
+
+    Args:
+        meal (str): The meal name.
+        cuisine (int): The cuisine the meal belongs to.
+        price (float): The price of the meal.
+        difficulty (str): The difficulty of the recipe / meals.
+
+    Raises:
+        ValueError: If the price is a negative number.
+        ValueError: If the difficulty level is not LOW, MED or HIGH.
+        sqlite3.IntegrityError: If the meal name already exists in the database - duplicate meal name.  
+        sqlite3.Error: If a database error occurs when running the query.      
+    """
     if not isinstance(price, (int, float)) or price <= 0:
         raise ValueError(f"Invalid price: {price}. Price must be a positive number.")
     if difficulty not in ['LOW', 'MED', 'HIGH']:
@@ -53,6 +68,17 @@ def create_meal(meal: str, cuisine: str, price: float, difficulty: str) -> None:
 
 
 def delete_meal(meal_id: int) -> None:
+    """
+    Deletes a meal
+
+    Args:
+        meal_id (int): The ID of the meal to delete.
+
+    Raises:
+        ValueError: If the meal_id has already been deleted. 
+        ValueError: If the meal_id has not been found.
+        sqlite3.Error: If a database error occurs when running the query.
+    """
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
@@ -76,6 +102,20 @@ def delete_meal(meal_id: int) -> None:
         raise e
 
 def get_leaderboard(sort_by: str="wins") -> dict[str, Any]:
+    """
+    Retrieves leaderboard of meals based on their performances in battles.
+
+    Args:
+        sort_by (str): The criteria for sorting the leaderboard. Can sort by "wins" (default) or by "win_pct".
+
+    Returns:
+        dict[str, Any]: A list of meals including their details and statistics of performances.
+
+    Raises:
+        ValueError: If an invalid sort_by parameter is used.
+        sqlite3.Error: If a database error occurs when running the query.
+    """
+
     query = """
         SELECT id, meal, cuisine, price, difficulty, battles, wins, (wins * 1.0 / battles) AS win_pct
         FROM meals WHERE deleted = false AND battles > 0
@@ -117,6 +157,20 @@ def get_leaderboard(sort_by: str="wins") -> dict[str, Any]:
         raise e
 
 def get_meal_by_id(meal_id: int) -> Meal:
+    """
+    Gets a meal using the meal_id.
+
+    Args:
+        meal_id (int): The ID of the meal to delete.
+
+    Returns:
+        Meal: Meal object corresponding to the input meal_id. 
+
+    Raises:
+        ValueError: If the meal_id has been deleted
+        ValueError: if the meal_id has not been found
+        sqlite3.Error: If a database error occurs when running the query.
+    """
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
@@ -138,6 +192,20 @@ def get_meal_by_id(meal_id: int) -> Meal:
 
 
 def get_meal_by_name(meal_name: str) -> Meal:
+    """
+    Gets a meal using the meal_name.
+
+    Args:
+        meal_name (str): The string name of the meal to get.
+
+    Returns:
+        Meal: Meal object corresponding to the input meal_id. 
+
+    Raises:
+        ValueError: If the meal_id has been deleted
+        ValueError: if the meal_id has not been found
+        sqlite3.Error: If a database error occurs when running the query.
+    """
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
@@ -159,6 +227,18 @@ def get_meal_by_name(meal_name: str) -> Meal:
 
 
 def update_meal_stats(meal_id: int, result: str) -> None:
+    """
+    Updates a meal's status. 
+
+    Args:
+        meal_name (str): The string name of the meal to get.
+
+    Raises:
+        ValueError: If the meal_id has been deleted
+        ValueError: If the meal_id has not been found
+        ValueError: If the result is invalid, that is, not 'win' or 'loss'
+        sqlite3.Error: If a database error occurs when running the query.
+    """
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
