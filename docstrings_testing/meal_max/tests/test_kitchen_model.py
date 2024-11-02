@@ -80,7 +80,7 @@ def test_create_meal_duplicate(mock_cursor):
     mock_cursor.execute.side_effect = sqlite3.IntegrityError("UNIQUE constraint failed: meals.meal")
 
     # Expect the function to raise a ValueError with a specific message when handling the IntegrityError
-    with pytest.raises(ValueError, match="Meal with meal 'Meal Name' already exists."):
+    with pytest.raises(ValueError, match="Meal with name 'Meal Name' already exists."):
         create_meal(meal="Meal Name", cuisine="Cuisine Name", price=20.24, difficulty="LOW")
 
 def test_create_meal_invalid_price():
@@ -107,7 +107,7 @@ def test_delete_meal(mock_cursor):
     # Simulate that the meal exists (id = 1)
     mock_cursor.fetchone.return_value = ([False])
 
-    # Call the delete_song function
+    # Call the delete_meal function
     delete_meal(1)
 
     # Normalize the SQL for both queries (SELECT and UPDATE)
@@ -145,12 +145,70 @@ def test_delete_meal_by_id(mock_cursor):
 def test_delete_meal_already_deleted(mock_cursor):
     """Test error when trying to delete a meal that's already marked as deleted."""
 
-    # Simulate that the song exists but is already marked as deleted
+    # Simulate that the meal exists but is already marked as deleted
     mock_cursor.fetchone.return_value = ([True])
 
     # Expect a ValueError when attempting to delete a meal that's already been deleted
     with pytest.raises(ValueError, match="Meal with ID 999 has already been deleted"):
         delete_meal(999)
+
+######################################################
+#
+#    Leaderboard
+#
+######################################################
+
+def test_get_leaderboard(mock_cursor):
+    """Test retrieving the leaderboard sorted by wins."""
+
+    # Simulate the data returned from the database
+    mock_cursor.fetchall.return_value = [
+        (1, "Meal A", "Cuisine A", 15.0, "LOW", 10, 8, 0.8),
+        (2, "Meal B", "Cuisine B", 20.0, "MED", 20, 15, 0.75),
+    ]
+
+    # Call the function and check the result
+    result = get_leaderboard(sort_by="wins")
+
+    # Expected result based on the simulated fetchall return value
+    expected_result = [
+        {
+            'id': 1,
+            'meal': "Meal A",
+            'cuisine': "Cuisine A",
+            'price': 15.0,
+            'difficulty': "LOW",
+            'battles': 10,
+            'wins': 8,
+            'win_pct': 80.0,
+        },
+        {
+            'id': 2,
+            'meal': "Meal B",
+            'cuisine': "Cuisine B",
+            'price': 20.0,
+            'difficulty': "MED",
+            'battles': 20,
+            'wins': 15,
+            'win_pct': 75.0,
+        },
+    ]
+
+    assert result == expected_result, f"Expected {expected_result}, got {result}"
+
+    # Ensure the SQL query was executed correctly
+    expected_query = normalize_whitespace("""
+        SELECT id, meal, cuisine, price, difficulty, battles, wins, (wins * 1.0 / battles) AS win_pct
+        FROM meals WHERE deleted = false AND battles > 0 ORDER BY wins DESC
+    """)
+    actual_query = normalize_whitespace(mock_cursor.execute.call_args[0][0])
+    assert actual_query == expected_query, "The SQL query did not match the expected structure."
+
+def test_get_leaderboard_invalid_sort():
+    """Test error when retrieving the leaderboard with an invalid sort_by parameter."""
+
+    with pytest.raises(ValueError, match="Invalid sort_by parameter: invalid"):
+        get_leaderboard(sort_by="invalid")
 
 ######################################################
 #
@@ -160,19 +218,19 @@ def test_delete_meal_already_deleted(mock_cursor):
 
 def test_get_meal_by_id(mock_cursor):
     # Simulate that the meal exists (id = 1)
-    mock_cursor.fetchone.return_value = (1, "Artist Name", "Song Title", 2022, "Pop", 180, False)
+    mock_cursor.fetchone.return_value = (1, "Meal Name", "Cuisine Name", 20.24, "LOW", False)
 
     # Call the function and check the result
-    result = get_song_by_id(1)
+    result = get_meal_by_id(1)
 
     # Expected result based on the simulated fetchone return value
-    expected_result = Song(1, "Artist Name", "Song Title", 2022, "Pop", 180)
+    expected_result = Meal(1, "Meal Name", "Cuisine Name", 20.24, "LOW")
 
     # Ensure the result matches the expected output
     assert result == expected_result, f"Expected {expected_result}, got {result}"
 
     # Ensure the SQL query was executed correctly
-    expected_query = normalize_whitespace("SELECT id, artist, title, year, genre, duration, deleted FROM songs WHERE id = ?")
+    expected_query = normalize_whitespace("SELECT id, meal, cuisine, price, difficulty, deleted FROM meals WHERE id = ?")
     actual_query = normalize_whitespace(mock_cursor.execute.call_args[0][0])
 
     # Assert that the SQL query was correct
@@ -185,29 +243,41 @@ def test_get_meal_by_id(mock_cursor):
     expected_arguments = (1,)
     assert actual_arguments == expected_arguments, f"The SQL query arguments did not match. Expected {expected_arguments}, got {actual_arguments}."
 
-def test_get_song_by_id_bad_id(mock_cursor):
-    # Simulate that no song exists for the given ID
+def test_get_meal_by_id_bad_id(mock_cursor):
+    # Simulate that no meal exists for the given ID
     mock_cursor.fetchone.return_value = None
 
-    # Expect a ValueError when the song is not found
-    with pytest.raises(ValueError, match="Song with ID 999 not found"):
-        get_song_by_id(999)
+    # Expect a ValueError when the meal is not found
+    with pytest.raises(ValueError, match="Meal with ID 999 not found"):
+        get_meal_by_id(999)
 
-def test_get_song_by_compound_key(mock_cursor):
-    # Simulate that the song exists (artist = "Artist Name", title = "Song Title", year = 2022)
-    mock_cursor.fetchone.return_value = (1, "Artist Name", "Song Title", 2022, "Pop", 180, False)
+def test_get_meal_by_id_deleted(mock_cursor):
+    """Test error when trying to retrieve a meal by ID that has been deleted."""
+
+    # Simulate that the meal exists but is marked as deleted
+    mock_cursor.fetchone.return_value = (1, "Meal Name", "Cuisine Name", 20.24, "LOW", True)
+
+    # Expect a ValueError when the meal is deleted
+    with pytest.raises(ValueError, match="Meal with ID 1 has been deleted"):
+        get_meal_by_id(1)
+
+def test_get_meal_by_name(mock_cursor):
+    """Test retrieving a meal by its name."""
+
+    # Simulate that the meal exists with the given name
+    mock_cursor.fetchone.return_value = (1, "Meal Name", "Cuisine Name", 20.24, "LOW", False)
 
     # Call the function and check the result
-    result = get_song_by_compound_key("Artist Name", "Song Title", 2022)
+    result = get_meal_by_name("Meal Name")
 
     # Expected result based on the simulated fetchone return value
-    expected_result = Song(1, "Artist Name", "Song Title", 2022, "Pop", 180)
+    expected_result = Meal(1, "Meal Name", "Cuisine Name", 20.24, "LOW")
 
     # Ensure the result matches the expected output
     assert result == expected_result, f"Expected {expected_result}, got {result}"
 
     # Ensure the SQL query was executed correctly
-    expected_query = normalize_whitespace("SELECT id, artist, title, year, genre, duration, deleted FROM songs WHERE artist = ? AND title = ? AND year = ?")
+    expected_query = normalize_whitespace("SELECT id, meal, cuisine, price, difficulty, deleted FROM meals WHERE meal = ?")
     actual_query = normalize_whitespace(mock_cursor.execute.call_args[0][0])
 
     # Assert that the SQL query was correct
@@ -215,188 +285,93 @@ def test_get_song_by_compound_key(mock_cursor):
 
     # Extract the arguments used in the SQL call
     actual_arguments = mock_cursor.execute.call_args[0][1]
-
-    # Assert that the SQL query was executed with the correct arguments
-    expected_arguments = ("Artist Name", "Song Title", 2022)
+    expected_arguments = ("Meal Name",)
     assert actual_arguments == expected_arguments, f"The SQL query arguments did not match. Expected {expected_arguments}, got {actual_arguments}."
 
-def test_get_all_songs(mock_cursor):
-    """Test retrieving all songs that are not marked as deleted."""
+def test_get_meal_by_name_non_existent(mock_cursor):
+    """Test error when trying to retrieve a meal by a non-existent name."""
 
-    # Simulate that there are multiple songs in the database
-    mock_cursor.fetchall.return_value = [
-        (1, "Artist A", "Song A", 2020, "Rock", 210, 10, False),
-        (2, "Artist B", "Song B", 2021, "Pop", 180, 20, False),
-        (3, "Artist C", "Song C", 2022, "Jazz", 200, 5, False)
-    ]
+    # Simulate that no meal exists for the given name
+    mock_cursor.fetchone.return_value = None
 
-    # Call the get_all_songs function
-    songs = get_all_songs()
+    # Expect a ValueError when the meal is not found
+    with pytest.raises(ValueError, match="Meal with name 'Nonexistent Meal' not found"):
+        get_meal_by_name("Nonexistent Meal")
 
-    # Ensure the results match the expected output
-    expected_result = [
-        {"id": 1, "artist": "Artist A", "title": "Song A", "year": 2020, "genre": "Rock", "duration": 210, "play_count": 10},
-        {"id": 2, "artist": "Artist B", "title": "Song B", "year": 2021, "genre": "Pop", "duration": 180, "play_count": 20},
-        {"id": 3, "artist": "Artist C", "title": "Song C", "year": 2022, "genre": "Jazz", "duration": 200, "play_count": 5}
-    ]
+def test_get_meal_by_name_deleted(mock_cursor):
+    """Test error when trying to retrieve a meal by name that has been deleted."""
 
-    assert songs == expected_result, f"Expected {expected_result}, but got {songs}"
+    # Simulate that the meal exists but is marked as deleted
+    mock_cursor.fetchone.return_value = (1, "Meal Name", "Cuisine Name", 20.24, "LOW", True)
 
-    # Ensure the SQL query was executed correctly
-    expected_query = normalize_whitespace("""
-        SELECT id, artist, title, year, genre, duration, play_count
-        FROM songs
-        WHERE deleted = FALSE
-    """)
-    actual_query = normalize_whitespace(mock_cursor.execute.call_args[0][0])
+    # Expect a ValueError when the meal is deleted
+    with pytest.raises(ValueError, match="Meal with name 'Meal Name' has been deleted"):
+        get_meal_by_name("Meal Name")
 
-    assert actual_query == expected_query, "The SQL query did not match the expected structure."
+######################################################
+#
+#    Update Meal Stats
+#
+######################################################
 
-def test_get_all_songs_empty_catalog(mock_cursor, caplog):
-    """Test that retrieving all songs returns an empty list when the catalog is empty and logs a warning."""
+def test_update_meal_stats_win(mock_cursor):
+    """Test updating a meal's stats with a win."""
 
-    # Simulate that the catalog is empty (no songs)
-    mock_cursor.fetchall.return_value = []
-
-    # Call the get_all_songs function
-    result = get_all_songs()
-
-    # Ensure the result is an empty list
-    assert result == [], f"Expected empty list, but got {result}"
-
-    # Ensure that a warning was logged
-    assert "The song catalog is empty." in caplog.text, "Expected warning about empty catalog not found in logs."
-
-    # Ensure the SQL query was executed correctly
-    expected_query = normalize_whitespace("SELECT id, artist, title, year, genre, duration, play_count FROM songs WHERE deleted = FALSE")
-    actual_query = normalize_whitespace(mock_cursor.execute.call_args[0][0])
-
-    # Assert that the SQL query was correct
-    assert actual_query == expected_query, "The SQL query did not match the expected structure."
-
-def test_get_all_songs_ordered_by_play_count(mock_cursor):
-    """Test retrieving all songs ordered by play count."""
-
-    # Simulate that there are multiple songs in the database
-    mock_cursor.fetchall.return_value = [
-        (2, "Artist B", "Song B", 2021, "Pop", 180, 20),
-        (1, "Artist A", "Song A", 2020, "Rock", 210, 10),
-        (3, "Artist C", "Song C", 2022, "Jazz", 200, 5)
-    ]
-
-    # Call the get_all_songs function with sort_by_play_count = True
-    songs = get_all_songs(sort_by_play_count=True)
-
-    # Ensure the results are sorted by play count
-    expected_result = [
-        {"id": 2, "artist": "Artist B", "title": "Song B", "year": 2021, "genre": "Pop", "duration": 180, "play_count": 20},
-        {"id": 1, "artist": "Artist A", "title": "Song A", "year": 2020, "genre": "Rock", "duration": 210, "play_count": 10},
-        {"id": 3, "artist": "Artist C", "title": "Song C", "year": 2022, "genre": "Jazz", "duration": 200, "play_count": 5}
-    ]
-
-    assert songs == expected_result, f"Expected {expected_result}, but got {songs}"
-
-    # Ensure the SQL query was executed correctly
-    expected_query = normalize_whitespace("""
-        SELECT id, artist, title, year, genre, duration, play_count
-        FROM songs
-        WHERE deleted = FALSE
-        ORDER BY play_count DESC
-    """)
-    actual_query = normalize_whitespace(mock_cursor.execute.call_args[0][0])
-
-    assert actual_query == expected_query, "The SQL query did not match the expected structure."
-
-def test_get_random_song(mock_cursor, mocker):
-    """Test retrieving a random song from the catalog."""
-
-    # Simulate that there are multiple songs in the database
-    mock_cursor.fetchall.return_value = [
-        (1, "Artist A", "Song A", 2020, "Rock", 210, 10),
-        (2, "Artist B", "Song B", 2021, "Pop", 180, 20),
-        (3, "Artist C", "Song C", 2022, "Jazz", 200, 5)
-    ]
-
-    # Mock random number generation to return the 2nd song
-    mock_random = mocker.patch("music_collection.models.song_model.get_random", return_value=2)
-
-    # Call the get_random_song method
-    result = get_random_song()
-
-    # Expected result based on the mock random number and fetchall return value
-    expected_result = Song(2, "Artist B", "Song B", 2021, "Pop", 180)
-
-    # Ensure the result matches the expected output
-    assert result == expected_result, f"Expected {expected_result}, got {result}"
-
-    # Ensure that the random number was called with the correct number of songs
-    mock_random.assert_called_once_with(3)
-
-    # Ensure the SQL query was executed correctly
-    expected_query = normalize_whitespace("SELECT id, artist, title, year, genre, duration, play_count FROM songs WHERE deleted = FALSE")
-    actual_query = normalize_whitespace(mock_cursor.execute.call_args[0][0])
-
-    # Assert that the SQL query was correct
-    assert actual_query == expected_query, "The SQL query did not match the expected structure."
-
-def test_get_random_song_empty_catalog(mock_cursor, mocker):
-    """Test retrieving a random song when the catalog is empty."""
-
-    # Simulate that the catalog is empty
-    mock_cursor.fetchall.return_value = []
-
-    # Expect a ValueError to be raised when calling get_random_song with an empty catalog
-    with pytest.raises(ValueError, match="The song catalog is empty"):
-        get_random_song()
-
-    # Ensure that the random number was not called since there are no songs
-    mocker.patch("music_collection.models.song_model.get_random").assert_not_called()
-
-    # Ensure the SQL query was executed correctly
-    expected_query = normalize_whitespace("SELECT id, artist, title, year, genre, duration, play_count FROM songs WHERE deleted = FALSE")
-    actual_query = normalize_whitespace(mock_cursor.execute.call_args[0][0])
-
-    # Assert that the SQL query was correct
-    assert actual_query == expected_query, "The SQL query did not match the expected structure."
-
-def test_update_play_count(mock_cursor):
-    """Test updating the play count of a song."""
-
-    # Simulate that the song exists and is not deleted (id = 1)
+    # Simulate that the meal exists and is not deleted (id = 1)
     mock_cursor.fetchone.return_value = [False]
 
-    # Call the update_play_count function with a sample song ID
-    song_id = 1
-    update_play_count(song_id)
+    # Call the update_meal_stats function
+    update_meal_stats(1, result="win")
 
-    # Normalize the expected SQL query
-    expected_query = normalize_whitespace("""
-        UPDATE songs SET play_count = play_count + 1 WHERE id = ?
-    """)
-
-    # Ensure the SQL query was executed correctly
+    # Ensure the correct SQL query for updating the stats
+    expected_query = normalize_whitespace("""UPDATE meals SET battles = battles + 1, wins = wins + 1 WHERE id = ?""")
     actual_query = normalize_whitespace(mock_cursor.execute.call_args_list[1][0][0])
-
-    # Assert that the SQL query was correct
     assert actual_query == expected_query, "The SQL query did not match the expected structure."
 
-    # Extract the arguments used in the SQL call
+    # Check that the correct arguments were used
     actual_arguments = mock_cursor.execute.call_args_list[1][0][1]
-
-    # Assert that the SQL query was executed with the correct arguments (song ID)
-    expected_arguments = (song_id,)
+    expected_arguments = (1,)
     assert actual_arguments == expected_arguments, f"The SQL query arguments did not match. Expected {expected_arguments}, got {actual_arguments}."
 
-### Test for Updating a Deleted Song:
-def test_update_play_count_deleted_song(mock_cursor):
-    """Test error when trying to update play count for a deleted song."""
+def test_update_meal_stats_loss(mock_cursor):
+    """Test updating a meal's stats with a loss."""
 
-    # Simulate that the song exists but is marked as deleted (id = 1)
+    # Simulate that the meal exists and is not deleted (id = 1)
+    mock_cursor.fetchone.return_value = [False]
+
+    # Call the update_meal_stats function
+    update_meal_stats(1, result="loss")
+
+    # Ensure the correct SQL query for updating the stats
+    expected_query = normalize_whitespace("""UPDATE meals SET battles = battles + 1 WHERE id = ?""")
+    actual_query = normalize_whitespace(mock_cursor.execute.call_args_list[1][0][0])
+    assert actual_query == expected_query, "The SQL query did not match the expected structure."
+
+    # Check that the correct arguments were used
+    actual_arguments = mock_cursor.execute.call_args_list[1][0][1]
+    expected_arguments = (1,)
+    assert actual_arguments == expected_arguments, f"The SQL query arguments did not match. Expected {expected_arguments}, got {actual_arguments}."
+
+def test_update_meal_stats_invalid_result():
+    """Test error when updating meal stats with an invalid result."""
+
+    with pytest.raises(ValueError, match="Invalid result: draw. Expected 'win' or 'loss'."):
+        update_meal_stats(1, result="draw")
+
+def test_update_meal_stats_deleted_meal(mock_cursor):
+    """Test error when trying to update stats for a deleted meal."""
+
+    # Simulate that the meal is marked as deleted
     mock_cursor.fetchone.return_value = [True]
 
-    # Expect a ValueError when attempting to update a deleted song
-    with pytest.raises(ValueError, match="Song with ID 1 has been deleted"):
-        update_play_count(1)
+    with pytest.raises(ValueError, match="Meal with ID 1 has been deleted"):
+        update_meal_stats(1, result="win")
 
-    # Ensure that no SQL query for updating play count was executed
-    mock_cursor.execute.assert_called_once_with("SELECT deleted FROM songs WHERE id = ?", (1,))
+def test_update_meal_stats_non_existent_meal(mock_cursor):
+    """Test error when trying to update stats for a non-existent meal."""
+
+    # Simulate that no meal exists for the given ID
+    mock_cursor.fetchone.return_value = None
+
+    with pytest.raises(ValueError, match="Meal with ID 999 not found"):
+        update_meal_stats(999, result="win")
