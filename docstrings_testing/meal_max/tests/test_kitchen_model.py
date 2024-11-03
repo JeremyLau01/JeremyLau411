@@ -80,18 +80,18 @@ def test_create_meal_duplicate(mock_cursor):
     mock_cursor.execute.side_effect = sqlite3.IntegrityError("UNIQUE constraint failed: meals.meal")
 
     # Expect the function to raise a ValueError with a specific message when handling the IntegrityError
-    with pytest.raises(ValueError, match="Meal with name 'Meal Name' already exists."):
+    with pytest.raises(ValueError, match="Meal with name 'Meal Name' already exists"):
         create_meal(meal="Meal Name", cuisine="Cuisine Name", price=20.24, difficulty="LOW")
 
 def test_create_meal_invalid_price():
     """Test error when trying to create a meal with an invalid price (e.g., negative price)"""
 
     # Attempt to create a meal with a negative price
-    with pytest.raises(ValueError, match="Invalid price: -180 \(must be a positive integer\)."):
+    with pytest.raises(ValueError, match="Invalid price: -180. Price must be a positive number."):
         create_meal(meal="Meal Name", cuisine="Cuisine Name", price=-180, difficulty="LOW")
 
     # Attempt to create a meal with a non-integer / non-float price
-    with pytest.raises(ValueError, match="Invalid price: invalid \(must be a positive integer\)."):
+    with pytest.raises(ValueError, match="Invalid price: invalid. Price must be a positive number."):
         create_meal(meal="Meal Name", cuisine="Cuisine Name", price="invalid", difficulty="LOW")
 
 def test_create_meal_invalid_difficulty():
