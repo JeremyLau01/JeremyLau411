@@ -98,7 +98,7 @@ def test_create_meal_invalid_difficulty():
     """Test error when trying to create a meal with an invalid difficulty (e.g., not 'LOW', 'MED', or 'HIGH')."""
 
     # Attempt to create a meal with a difficulty not 'LOW', 'MED', or 'HIGH'
-    with pytest.raises(ValueError, match="Invalid difficulty provided: 'HARD' \(must be 'LOW', 'MED', or 'HIGH'\)."):
+    with pytest.raises(ValueError, match=r"Invalid difficulty level: HARD. Must be 'LOW', 'MED', or 'HIGH'."):
         create_meal(meal="Meal Name", cuisine="Cuisine Name", price=20.24, difficulty="HARD")
 
 def test_delete_meal(mock_cursor):
