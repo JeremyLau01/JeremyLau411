@@ -125,6 +125,25 @@ get_meal_by_name() {
 #
 ##########################################################
 
+# Function to get the meal leaderboard sorted by play count
+get_meal_leaderboard() {
+  sort_by=$1
+
+  echo "Retrieving leaderboard sorted by $sort_by..."
+  response=$(curl -s -X GET "$BASE_URL/get-leaderboard?sort=$sort_by")
+
+  if echo "$response" | grep -q '"status": "success"'; then
+    echo "Leaderboard retrieved successfully."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Leaderboard JSON (sorted by $sort_by):"
+      echo "$response" | jq .
+    fi
+  else
+    echo "Failed to retrieve leaderboard."
+    exit 1
+  fi
+}
+
 # Health checks
 check_health
 check_db
@@ -134,8 +153,13 @@ create_meal "Pizza" "Italian" 20.0 "MED"
 create_meal "Sushi" "Japanese" 30.0 "HIGH"
 create_meal "Tacos" "Mexican" 10.0 "LOW"
 
+delete_meal_by_id 1
 get_meal_by_id 1
 get_meal_by_name "Tacos"
+
+
+get_meal_leaderboard "wins"
+get_meal_leaderboard "win_pct"
 
 
 echo "All tests completed successfully!"
