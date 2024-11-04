@@ -149,7 +149,7 @@ def test_delete_meal_already_deleted(mock_cursor):
     mock_cursor.fetchone.return_value = ([True])
 
     # Expect a ValueError when attempting to delete a meal that's already been deleted
-    with pytest.raises(ValueError, match="Meal with ID 999 has already been deleted"):
+    with pytest.raises(ValueError, match="Meal with ID 999 has been deleted"):
         delete_meal(999)
 
 ######################################################
@@ -295,7 +295,7 @@ def test_get_meal_by_name_non_existent(mock_cursor):
     mock_cursor.fetchone.return_value = None
 
     # Expect a ValueError when the meal is not found
-    with pytest.raises(ValueError, match="Meal with name 'Nonexistent Meal' not found"):
+    with pytest.raises(ValueError, match="Meal with name Nonexistent Meal not found"):
         get_meal_by_name("Nonexistent Meal")
 
 def test_get_meal_by_name_deleted(mock_cursor):
@@ -305,7 +305,7 @@ def test_get_meal_by_name_deleted(mock_cursor):
     mock_cursor.fetchone.return_value = (1, "Meal Name", "Cuisine Name", 20.24, "LOW", True)
 
     # Expect a ValueError when the meal is deleted
-    with pytest.raises(ValueError, match="Meal with name 'Meal Name' has been deleted"):
+    with pytest.raises(ValueError, match="Meal with name Meal Name has been deleted"):
         get_meal_by_name("Meal Name")
 
 ######################################################
