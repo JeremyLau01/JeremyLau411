@@ -46,6 +46,11 @@ check_db() {
   fi
 }
 
+clear_catalog() {
+  echo "Clearing the playlist..."
+  curl -s -X DELETE "$BASE_URL/clear-meals" | grep -q '"status": "success"'
+}
+
 
 ##########################################################
 #
@@ -119,6 +124,74 @@ get_meal_by_name() {
   fi
 }
 
+############################################################
+#
+# Battle Management
+#
+############################################################
+battle() {
+  echo "Playing current song..."
+  response=$(curl -s -X POST "$BASE_URL/play-current-song")
+
+  if echo "$response" | grep -q '"status": "success"'; then
+    echo "Current song is now playing."
+  else
+    echo "Failed to play current song."
+    exit 1
+  fi
+}
+
+
+clear_combatants() {
+  echo "Clearing combatants..."
+  response=$(curl -s -X POST "$BASE_URL/clear-combatants")
+
+  if echo "$response" | grep -q '"status": "combatants cleared"'; then
+    echo "Combatants cleared successfully."
+  else
+    echo "Failed to clear playlist."
+    exit 1
+  fi
+}
+
+get_combatants() {
+  echo "Retrieving combatants from battle..."
+  response=$(curl -s -X GET "$BASE_URL/get-combatants")
+
+  if echo "$response" | grep -q '"status": "success"'; then
+    echo "Combatants retrieved successfully."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Combatant JSON:"
+      echo "$response" | jq .
+    fi
+  else
+    echo "Failed to retrieve all songs from playlist."
+    exit 1
+  fi
+}
+
+prep_combatant() {
+  meal=$1
+
+  echo "Prepping combatant for battle: $meal"
+  response=$(curl -s -X POST "$BASE_URL/prep-combatant" \
+    -H "Content-Type: application/json" \
+    -d "{\"meal\":\"$meal\"}")
+
+  if echo "$response" | grep -q '"status": "combatant prepared"'; then
+    echo "Meal prepped successfully."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Meal JSON:"
+      echo "$response" | jq .
+    fi
+  else
+    echo "Failed to add song to playlist."
+    exit 1
+  fi
+}
+
+
+
 ##########################################################
 #
 # Leaderboard Management
@@ -147,6 +220,7 @@ get_meal_leaderboard() {
 # Health checks
 check_health
 check_db
+clear_catalog
 
 # Create meals
 create_meal "Pizza" "Italian" 20.0 "MED"
@@ -161,5 +235,19 @@ get_meal_by_name "Tacos"
 get_meal_leaderboard "wins"
 get_meal_leaderboard "win_pct"
 
+prep_combatant "Pizza"
+get_combatants
+prep_combatant "Sushi"
+get_combatants
+clear_combatants
+
+#get_combatants
+#prep_combatant "Queen" "Bohemian Rhapsody" 1975
+#prep_combatant "The Beatles" "Let It Be" 1970
+#
+#get_combatants
+#
+#battle
+#
 
 echo "All tests completed successfully!"
