@@ -352,8 +352,9 @@ def test_update_meal_stats_loss(mock_cursor):
     expected_arguments = (1,)
     assert actual_arguments == expected_arguments, f"The SQL query arguments did not match. Expected {expected_arguments}, got {actual_arguments}."
 
-def test_update_meal_stats_invalid_result():
+def test_update_meal_stats_invalid_result(mock_cursor):
     """Test error when updating meal stats with an invalid result."""
+    mock_cursor.fetchone.return_value = [False]
 
     with pytest.raises(ValueError, match="Invalid result: draw. Expected 'win' or 'loss'."):
         update_meal_stats(1, result="draw")
