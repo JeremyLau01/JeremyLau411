@@ -82,7 +82,7 @@ delete_meal_by_id() {
 
   echo "Deleting meal by ID ($meal_id)..."
   response=$(curl -s -X DELETE "$BASE_URL/delete-meal/$meal_id")
-  if echo "$response" | grep -q '"status": "success"'; then
+  if echo "$response" | grep -q '"status": "meal deleted"'; then
     echo "Meal deleted successfully by ID ($meal_id)."
   else
     echo "Failed to delete meal by ID ($meal_id)."
