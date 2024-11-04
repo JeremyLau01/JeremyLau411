@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the base URL for the Flask API
-BASE_URL="http://localhost:5000/api"
+BASE_URL="http://localhost:9000/api"
 
 # Flag to control whether to echo JSON output
 ECHO_JSON=false
@@ -62,7 +62,7 @@ create_meal() {
 
   echo "Creating meal: $meal ($cuisine, $price, $difficulty)"
   curl -s -X POST "$BASE_URL/create-meal" -H "Content-Type: application/json" \
-    -d "{\"meal\":\"$meal\", \"cuisine\":\"$cuisine\", \"price\":$price, \"difficulty\":\"$difficulty\"}" | grep -q '"status": "success"'
+    -d "{\"meal\":\"$meal\", \"cuisine\":\"$cuisine\", \"price\":$price, \"difficulty\":\"$difficulty\"}" | grep -q '"status": "combatant added"'
 
   if [ $? -eq 0 ]; then
     echo "Meal created successfully."
