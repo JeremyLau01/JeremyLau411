@@ -52,3 +52,90 @@ check_db() {
 # Meal Management
 #
 ##########################################################
+
+
+create_meal() {
+  meal=$1
+  cuisine=$2
+  price=$3
+  difficulty=$4
+
+  echo "Creating meal: $meal ($cuisine, $price, $difficulty)"
+  curl -s -X POST "$BASE_URL/create-meal" -H "Content-Type: application/json" \
+    -d "{\"meal\":\"$meal\", \"cuisine\":\"$cuisine\", \"price\":$price, \"difficulty\":\"$difficulty\"}" | grep -q '"status": "success"'
+
+  if [ $? -eq 0 ]; then
+    echo "Meal created successfully."
+  else
+    echo "Failed to create meal."
+    exit 1
+  fi
+}
+
+delete_meal_by_id() {
+  meal_id=$1
+
+  echo "Deleting meal by ID ($meal_id)..."
+  response=$(curl -s -X DELETE "$BASE_URL/delete-meal/$meal_id")
+  if echo "$response" | grep -q '"status": "success"'; then
+    echo "Meal deleted successfully by ID ($meal_id)."
+  else
+    echo "Failed to delete meal by ID ($meal_id)."
+    exit 1
+  fi
+}
+
+get_meal_by_id() {
+  meal_id=$1
+
+  echo "Retrieving meal by ID ($meal_id)..."
+  response=$(curl -s -X GET "$BASE_URL/get-meal-by-id/$meal_id")
+  if echo "$response" | grep -q '"status": "success"'; then
+    echo "Meal retrieved successfully by ID ($meal_id)."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Meal JSON (ID $meal_id):"
+      echo "$response" | jq .
+    fi
+  else
+    echo "Failed to retrieve meal by ID ($meal_id)."
+    exit 1
+  fi
+}
+
+get_meal_by_name() {
+  name_id=$1
+  echo "Retrieving meal by name ($name_id)..."
+  response=$(curl -s -X GET "$BASE_URL/get-meal-by-name/$name_id")
+
+  if echo "$response" | grep -q '"status": "success"'; then
+    echo "Meal retrieved successfully by name ($name_id)."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Meal JSON: (ID $name_id)"
+      echo "$response" | jq .
+    fi
+  else
+    echo "Failed to retrieve meal by name ($name_id)."
+    exit 1
+  fi
+}
+
+##########################################################
+#
+# Leaderboard Management
+#
+##########################################################
+
+# Health checks
+check_health
+check_db
+
+# Create meals
+create_meal "Pizza" "Italian" 20.0 "MED"
+create_meal "Sushi" "Japanese" 30.0 "HIGH"
+create_meal "Tacos" "Mexican" 10.0 "LOW"
+
+get_meal_by_id 1
+get_meal_by_name "Tacos"
+
+
+echo "All tests completed successfully!"
