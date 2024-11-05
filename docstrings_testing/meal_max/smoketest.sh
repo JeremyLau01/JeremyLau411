@@ -130,13 +130,17 @@ get_meal_by_name() {
 #
 ############################################################
 battle() {
-  echo "Playing current song..."
-  response=$(curl -s -X POST "$BASE_URL/play-current-song")
+  echo "Initiating a battle..."
+response=$(curl -s -X GET "$BASE_URL/battle")
 
-  if echo "$response" | grep -q '"status": "success"'; then
-    echo "Current song is now playing."
+  if echo "$response" | grep -q '"status": "battle complete"'; then
+    echo "Battle completed."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Battle JSON:"
+      echo "$response" | jq .
+    fi
   else
-    echo "Failed to play current song."
+    echo "Failed to carry out the battle."
     exit 1
   fi
 }
@@ -149,7 +153,7 @@ clear_combatants() {
   if echo "$response" | grep -q '"status": "combatants cleared"'; then
     echo "Combatants cleared successfully."
   else
-    echo "Failed to clear playlist."
+    echo "Failed to clear combatants."
     exit 1
   fi
 }
@@ -165,7 +169,7 @@ get_combatants() {
       echo "$response" | jq .
     fi
   else
-    echo "Failed to retrieve all songs from playlist."
+    echo "Failed to retrieve combatants from battle."
     exit 1
   fi
 }
@@ -185,7 +189,7 @@ prep_combatant() {
       echo "$response" | jq .
     fi
   else
-    echo "Failed to add song to playlist."
+    echo "Failed to prep meal for battle."
     exit 1
   fi
 }
@@ -227,7 +231,7 @@ create_meal "Pizza" "Italian" 20.0 "MED"
 create_meal "Sushi" "Japanese" 30.0 "HIGH"
 create_meal "Tacos" "Mexican" 10.0 "LOW"
 
-delete_meal_by_id 1
+delete_meal_by_id
 get_meal_by_id 1
 get_meal_by_name "Tacos"
 
@@ -235,19 +239,11 @@ get_meal_by_name "Tacos"
 get_meal_leaderboard "wins"
 get_meal_leaderboard "win_pct"
 
+clear_combatants
 prep_combatant "Pizza"
-get_combatants
 prep_combatant "Sushi"
 get_combatants
+battle
 clear_combatants
-
-#get_combatants
-#prep_combatant "Queen" "Bohemian Rhapsody" 1975
-#prep_combatant "The Beatles" "Let It Be" 1970
-#
-#get_combatants
-#
-#battle
-#
 
 echo "All tests completed successfully!"
