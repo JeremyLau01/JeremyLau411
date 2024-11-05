@@ -47,7 +47,7 @@ check_db() {
 }
 
 clear_catalog() {
-  echo "Clearing the playlist..."
+  echo "Clearing the catlog..."
   curl -s -X DELETE "$BASE_URL/clear-meals" | grep -q '"status": "success"'
 }
 
@@ -239,8 +239,7 @@ get_meal_by_name "Tacos"
 get_meal_leaderboard "wins"
 get_meal_leaderboard "win_pct"
 
-clear_combatants
-prep_combatant "Pizza"
+prep_combatant "Tacos"
 prep_combatant "Sushi"
 get_combatants
 battle
